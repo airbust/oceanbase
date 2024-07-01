@@ -36,8 +36,10 @@ namespace common
 
 #define ATOMIC_LOAD(x) __atomic_load_n((x), __ATOMIC_SEQ_CST)
 #define ATOMIC_LOAD_ACQ(x) __atomic_load_n((x), __ATOMIC_ACQUIRE)
+#define ATOMIC_LOAD_RELAXED(x) __atomic_load_n((x), __ATOMIC_RELAXED)
 #define ATOMIC_STORE(x, v) ({ __atomic_store_n((x), (v), __ATOMIC_SEQ_CST);})
 #define ATOMIC_STORE_REL(x, v) ({ __atomic_store_n((x), (v), __ATOMIC_RELEASE);})
+#define ATOMIC_STORE_RELAXED(x, v) ({ __atomic_store_n((x), (v), __ATOMIC_RELAXED);})
 #define ATOMIC_LOAD64(addr) ({int64_t x = __atomic_load_n((int64_t*)addr, __ATOMIC_SEQ_CST); *(typeof(addr))&x; })
 #define ATOMIC_STORE64(addr, v) ({ typeof(v) v1 = v; __atomic_store_n((int64_t*)addr, *(int64_t*)&v1, __ATOMIC_SEQ_CST); })
 
@@ -70,16 +72,20 @@ template<typename T>
 #define ATOMIC_FAA(val, addv) ATOMIC_FAAx(val, addv, LA_ATOMIC_ID)
 #define ATOMIC_FAA(val, addv) ATOMIC_FAAx(val, addv, LA_ATOMIC_ID)
 #define ATOMIC_FAA_AR(val, addv) __atomic_fetch_add(val, addv, __ATOMIC_ACQ_REL)
+#define ATOMIC_FAA_RELAXED(val, addv) __atomic_fetch_add(val, addv, __ATOMIC_RELAXED)
 #define ATOMIC_AAF(val, addv) ATOMIC_AAFx(val, addv, LA_ATOMIC_ID)
 #define ATOMIC_AAF_AR(val, addv) __atomic_add_fetch(val, addv, __ATOMIC_ACQ_REL)
+#define ATOMIC_AAF_RELAXED(val, addv) __atomic_add_fetch(val, addv, __ATOMIC_RELAXED)
 #define ATOMIC_FAS(val, subv) ATOMIC_FASx(val, subv, LA_ATOMIC_ID)
 #define ATOMIC_SAF(val, subv) ATOMIC_SAFx(val, subv, LA_ATOMIC_ID)
 #define ATOMIC_TAS(val, newv) ATOMIC_TASx(val, newv, LA_ATOMIC_ID)
 #define ATOMIC_SET(val, newv) ATOMIC_SETx(val, newv, LA_ATOMIC_ID)
 #define ATOMIC_VCAS(val, cmpv, newv) ATOMIC_VCASx(val, cmpv, newv, LA_ATOMIC_ID)
-#define ATOMIC_VCAS_AR(val, cmpv, newv) ({ remove_volatile<typeof(*(val))>::type cmp = cmpv; __atomic_compare_exchange_n(val, &cmp, newv, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE); cmp;})
+#define ATOMIC_VCAS_AR(val, cmpv, newv) ({ typename remove_volatile<typeof(*(val))>::type cmp = cmpv; __atomic_compare_exchange_n(val, &cmpv, newv, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE); cmpv;})
+#define ATOMIC_VCAS_RELAXED(val, cmpv, newv) ({ typename remove_volatile<typeof(*(val))>::type cmp = cmpv; __atomic_compare_exchange_n(val, &cmpv, newv, 0, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED); cmpv;})
 #define ATOMIC_BCAS(val, cmpv, newv) ATOMIC_BCASx(val, cmpv, newv, LA_ATOMIC_ID)
 #define ATOMIC_BCAS_AR(val, cmpv, newv) ({ remove_volatile<typeof(*(val))>::type cmp = cmpv; __atomic_compare_exchange_n(val, &cmp, newv, 0, __ATOMIC_ACQ_REL, __ATOMIC_ACQUIRE); })
+#define ATOMIC_BCAS_RELAXED(val, cmpv, newv) ({ remove_volatile<typeof(*(val))>::type cmp = cmpv; __atomic_compare_exchange_n(val, &cmp, newv, 0, __ATOMIC_ACQ_REL, __ATOMIC_RELAXED); })
 #define ATOMIC_ANDF(val, andv) ATOMIC_ANDFx(val, andv, LA_ATOMIC_ID)
 
 template <typename T>
@@ -89,6 +95,32 @@ inline int64_t inc_update(T* v_, T x)
   T nv = ATOMIC_LOAD(v_);
   while ((ov = nv) < x) {
     if ((nv = ATOMIC_VCAS(v_, ov, x)) == ov) {
+      nv = x;
+    }
+  }
+  return nv;
+}
+
+template <typename T>
+inline int64_t inc_update_ar(T* v_, T x)
+{
+  T ov = 0;
+  T nv = ATOMIC_LOAD_ACQ(v_);
+  while ((ov = nv) < x) {
+    if ((nv = ATOMIC_VCAS_AR(v_, ov, x)) == ov) {
+      nv = x;
+    }
+  }
+  return nv;
+}
+
+template <typename T>
+inline int64_t inc_update_relaxed(T* v_, T x)
+{
+  T ov = 0;
+  T nv = ATOMIC_LOAD_RELAXED(v_);
+  while ((ov = nv) < x) {
+    if ((nv = ATOMIC_VCAS_RELAXED(v_, ov, x)) == ov) {
       nv = x;
     }
   }
@@ -110,6 +142,8 @@ inline int64_t dec_update(T* v_, T x)
 
 #define ATOMIC_CAS(val, cmpv, newv) ATOMIC_VCAS((val), (cmpv), (newv))
 #define ATOMIC_INC(val) do { IGNORE_RETURN ATOMIC_AAF((val), 1); } while (0)
+#define ATOMIC_INC_RELAXED(val) do { IGNORE_RETURN ATOMIC_AAF_RELAXED((val), 1); } while (0)
+#define ATOMIC_INC_AR(val) do { IGNORE_RETURN ATOMIC_AAF_AR((val), 1); } while (0)
 #define ATOMIC_DEC(val) do { IGNORE_RETURN ATOMIC_SAF((val), 1); } while (0)
 
 }
