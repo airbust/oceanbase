@@ -185,13 +185,13 @@ private:
     int64_t unused_id;
     // 100ms
     const int64_t CHECK_INTERVAL = 100000000;
-    const int64_t UPDATE_INTERVAL_US = 500000;
     const int64_t current_time = ObClockGenerator::getClock() * 1000;
+    int64_t last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
+    int64_t time_delta = current_time - last_request_ts;
+
     ret = get_number(1, current_time, gts, unused_id);
 
     if (OB_SUCC(ret)) {
-      int64_t last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
-      int64_t time_delta = current_time - last_request_ts;
       if ((last_request_ts == 0 || time_delta < 0) && ATOMIC_BCAS_AR(&check_gts_speed_lock_, 0, 1)) {
         last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
         time_delta = current_time - last_request_ts;
@@ -268,7 +268,7 @@ private:
     }
     return ret;
   }
-  
+
   int64_t max_pre_allocated_id_(const int64_t base_id)
   {
     int64_t max_pre_allocated_id = INT64_MAX;

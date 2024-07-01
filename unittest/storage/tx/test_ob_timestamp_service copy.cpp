@@ -139,15 +139,15 @@ public:
     if (cost_us > 500 * 1000) {
       TRANS_LOG_RET(WARN, OB_ERR_TOO_MUCH_TIME, "gts request fly too much time", K(request), K(result), K(cost_us));
     }
-    ATOMIC_INC_RELAXED(&total_cnt);
+    ATOMIC_INC(&total_cnt);
     // ObTransStatistic::get_instance().add_gts_request_total_count(request.get_tenant_id(), 1);
-    (void)ATOMIC_FAA_RELAXED(&total_rt, end.mts_ - start.mts_);
+    (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
     if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
       TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
           "avg_rt", (double)total_rt / (double)(total_cnt + 1),
           "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
-      ATOMIC_STORE_RELAXED(&total_cnt, 0);
-      ATOMIC_STORE_RELAXED(&total_rt, 0);
+      ATOMIC_STORE(&total_cnt, 0);
+      ATOMIC_STORE(&total_rt, 0);
     }
     return ret;
   }
@@ -185,28 +185,28 @@ private:
     int64_t unused_id;
     // 100ms
     const int64_t CHECK_INTERVAL = 100000000;
-    const int64_t UPDATE_INTERVAL_US = 500000;
     const int64_t current_time = ObClockGenerator::getClock() * 1000;
+    int64_t last_request_ts = ATOMIC_LOAD(&last_request_ts_);
+    int64_t time_delta = current_time - last_request_ts;
+
     ret = get_number(1, current_time, gts, unused_id);
 
     if (OB_SUCC(ret)) {
-      int64_t last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
-      int64_t time_delta = current_time - last_request_ts;
-      if ((last_request_ts == 0 || time_delta < 0) && ATOMIC_BCAS_AR(&check_gts_speed_lock_, 0, 1)) {
-        last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
+      if ((last_request_ts == 0 || time_delta < 0) && ATOMIC_BCAS(&check_gts_speed_lock_, 0, 1)) {
+        last_request_ts = ATOMIC_LOAD(&last_request_ts_);
         time_delta = current_time - last_request_ts;
         // before, we only do a fast check, and we should check again after we get the lock
         if (last_request_ts == 0 || time_delta < 0) {
-          ATOMIC_STORE_REL(&last_request_ts_, current_time);
-          ATOMIC_STORE_REL(&last_gts_, gts);
+          ATOMIC_STORE(&last_request_ts_, current_time);
+          ATOMIC_STORE(&last_gts_, gts);
         }
-        ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
-      } else if (time_delta > CHECK_INTERVAL && ATOMIC_BCAS_AR(&check_gts_speed_lock_, 0, 1)) {
-        last_request_ts = ATOMIC_LOAD_ACQ(&last_request_ts_);
+        ATOMIC_STORE(&check_gts_speed_lock_, 0);
+      } else if (time_delta > CHECK_INTERVAL && ATOMIC_BCAS(&check_gts_speed_lock_, 0, 1)) {
+        last_request_ts = ATOMIC_LOAD(&last_request_ts_);
         time_delta = current_time - last_request_ts;
         // before, we only do a fast check, and we should check again after we get the lock
         if (time_delta > CHECK_INTERVAL) {
-          const int64_t last_gts = ATOMIC_LOAD_ACQ(&last_gts_);
+          const int64_t last_gts = ATOMIC_LOAD(&last_gts_);
           const int64_t gts_delta = gts - last_gts;
           const int64_t compensation_threshold = time_delta / 2;
           const int64_t compensation_value = time_delta / 10;
@@ -218,14 +218,14 @@ private:
                 K(compensation_value));
           }
           if (OB_SUCC(ret)) {
-            ATOMIC_STORE_REL(&last_request_ts_, current_time);
-            ATOMIC_STORE_REL(&last_gts_, gts);
+            ATOMIC_STORE(&last_request_ts_, current_time);
+            ATOMIC_STORE(&last_gts_, gts);
           }
           TRANS_LOG(DEBUG, "check the gts service advancing speed", K(ret), K(current_time),
               K(last_request_ts), K(time_delta), K(last_gts), K(gts), K(gts_delta),
               K(compensation_value));
         }
-        ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
+        ATOMIC_STORE(&check_gts_speed_lock_, 0);
       }
     }
 
@@ -235,23 +235,23 @@ private:
   {
     int ret = OB_SUCCESS;
     int64_t tmp_id = 0;
-    const int64_t last_id = ATOMIC_LOAD_ACQ(&last_id_);
-    int64_t limit_id = ATOMIC_LOAD_ACQ(&limited_id_);
+    const int64_t last_id = ATOMIC_LOAD(&last_id_);
+    int64_t limit_id = ATOMIC_LOAD(&limited_id_);
     const int64_t allocated_range = min(min(limit_id - base_id, limit_id - last_id), range);
     if (allocated_range <= 0) {
       ret = OB_EAGAIN;
     } else {
       if (base_id > last_id) {
-        if (ATOMIC_BCAS_AR(&last_id_, last_id, base_id + allocated_range)) {
+        if (ATOMIC_BCAS(&last_id_, last_id, base_id + allocated_range)) {
           tmp_id = base_id;
         } else {
-          tmp_id = ATOMIC_FAA_AR(&last_id_, allocated_range);
+          tmp_id = ATOMIC_FAA(&last_id_, allocated_range);
         }
       } else {
-        tmp_id = ATOMIC_FAA_AR(&last_id_, allocated_range);
+        tmp_id = ATOMIC_FAA(&last_id_, allocated_range);
       }
       // Caution: get limit id again, compete with switch_to_follower_gracefully
-      limit_id = ATOMIC_LOAD_ACQ(&limited_id_);
+      limit_id = ATOMIC_LOAD(&limited_id_);
       if (tmp_id >= limit_id) {
         ret = OB_EAGAIN;
       } else {
@@ -268,15 +268,15 @@ private:
     }
     return ret;
   }
-  
+
   int64_t max_pre_allocated_id_(const int64_t base_id)
   {
     int64_t max_pre_allocated_id = INT64_MAX;
     if (TimestampService == service_type_) {
-      if (base_id > ATOMIC_LOAD_ACQ(&limited_id_)) {
-        (void)inc_update_ar(&last_id_, base_id);
+      if (base_id > ATOMIC_LOAD(&limited_id_)) {
+        (void)inc_update(&last_id_, base_id);
       }
-      max_pre_allocated_id = ATOMIC_LOAD_ACQ(&last_id_) + 2 * pre_allocated_range_;
+      max_pre_allocated_id = ATOMIC_LOAD(&last_id_) + 2 * pre_allocated_range_;
     }
     return max_pre_allocated_id;
   }
