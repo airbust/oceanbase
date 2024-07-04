@@ -263,13 +263,19 @@ private:
       } else {
         tmp_id = ATOMIC_FAA(&last_id_, allocated_range);
       }
-      // Caution: get limit id again, compete with switch_to_follower_gracefully
-      limit_id = ATOMIC_LOAD(&limited_id_);
-      if (tmp_id >= limit_id) {
-        ret = OB_EAGAIN;
-      } else {
+      // if tmp_id < limid_id, we do not need to get limid id again
+      if (tmp_id < limit_id) {
         start_id = tmp_id;
         end_id = min(start_id + allocated_range, limit_id);
+      } else {
+        // Caution: get limit id again, compete with switch_to_follower_gracefully
+        limit_id = ATOMIC_LOAD(&limited_id_);
+        if (tmp_id >= limit_id) {
+          ret = OB_EAGAIN;
+        } else {
+          start_id = tmp_id;
+          end_id = min(start_id + allocated_range, limit_id);
+        }
       }
     }
     if (OB_EAGAIN == ret || (limited_id_ - last_id_) < (pre_allocated_range_ * 2 / 3)) {
