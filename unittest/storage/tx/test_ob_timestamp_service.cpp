@@ -148,8 +148,8 @@ public:
       TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
           "avg_rt", (double)total_rt / (double)(total_cnt + 1),
           "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
-      ATOMIC_STORE(&total_cnt, 0);
-      ATOMIC_STORE(&total_rt, 0);
+      ATOMIC_STORE_REL(&total_cnt, 0);
+      ATOMIC_STORE_REL(&total_rt, 0);
     }
     return ret;
   }
@@ -210,10 +210,10 @@ private:
         time_delta = current_time - last_request_ts;
         // before, we only do a fast check, and we should check again after we get the lock
         if (last_request_ts == 0 || time_delta < 0) {
-          ATOMIC_STORE(&last_request_ts_, current_time);
-          ATOMIC_STORE(&last_gts_, gts);
+          ATOMIC_STORE_REL(&last_request_ts_, current_time);
+          ATOMIC_STORE_REL(&last_gts_, gts);
         }
-        ATOMIC_STORE(&check_gts_speed_lock_, 0);
+        ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
       } else if (time_delta > CHECK_INTERVAL && ATOMIC_BCAS(&check_gts_speed_lock_, 0, 1)) {
         last_request_ts = ATOMIC_LOAD(&last_request_ts_);
         time_delta = current_time - last_request_ts;
@@ -231,14 +231,14 @@ private:
                 K(compensation_value));
           }
           if (OB_SUCC(ret)) {
-            ATOMIC_STORE(&last_request_ts_, current_time);
-            ATOMIC_STORE(&last_gts_, gts);
+            ATOMIC_STORE_REL(&last_request_ts_, current_time);
+            ATOMIC_STORE_REL(&last_gts_, gts);
           }
           TRANS_LOG(DEBUG, "check the gts service advancing speed", K(ret), K(current_time),
               K(last_request_ts), K(time_delta), K(last_gts), K(gts), K(gts_delta),
               K(compensation_value));
         }
-        ATOMIC_STORE(&check_gts_speed_lock_, 0);
+        ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
       }
     }
 
