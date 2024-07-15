@@ -23,7 +23,6 @@
 #include "storage/tx/ob_gts_rpc.h"
 #include "storage/tx/ob_gts_define.h"
 #include "deps/oblib/src/lib/time/ob_tsc_timestamp.h"
-#define MAX_THREAD_NUM 105
 
 int64_t total_cnt;
 uint64_t cpu_freq;
@@ -85,15 +84,12 @@ public:
     pre_allocated_range_ = TIMESTAMP_PREALLOCATED_RANGE;
     last_id_ = 0;
     limited_id_ = ObTimeUtility::current_time_ns() + TIMESTAMP_PREALLOCATED_RANGE;
-    // std::cout << "limited_id_: " << limited_id_ << std::endl;
     ATOMIC_STORE(&last_gts_, 0);
     ATOMIC_STORE(&last_request_ts_, 0);
     ATOMIC_STORE(&check_gts_speed_lock_, 0);
   }
 public:
-  // int64_t total_cnt[MAX_THREAD_NUM];
-  // int64_t total_rt[MAX_THREAD_NUM];
-  int handle_request(const int64_t thread_id, const ObGtsRequest &request, ObGtsRpcResult &result)
+  int handle_request(const ObGtsRequest &request, ObGtsRpcResult &result)
   {
     static int64_t total_cnt = 0;
     static int64_t total_rt = 0;
@@ -146,16 +142,14 @@ public:
       TRANS_LOG_RET(WARN, OB_ERR_TOO_MUCH_TIME, "gts request fly too much time", K(request), K(result), K(cost_us));
     }
     ATOMIC_INC(&total_cnt);
-    // ATOMIC_INC(&total_cnt[thread_id]);
     // ObTransStatistic::get_instance().add_gts_request_total_count(request.get_tenant_id(), 1);
     (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
-    // (void)ATOMIC_FAA(&total_rt[thread_id], end.mts_ - start.mts_);
     if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
-      // TRANS_LOG(INFO, "handle gts request statistics", K(total_rt_), K(total_cnt_),
-      //     "avg_rt", (double)total_rt / (double)(total_cnt + 1),
-      //     "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
-      // ATOMIC_STORE(&total_cnt, 0);
-      // ATOMIC_STORE(&total_rt, 0);
+      TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
+          "avg_rt", (double)total_rt / (double)(total_cnt + 1),
+          "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
+      ATOMIC_STORE_REL(&total_cnt, 0);
+      ATOMIC_STORE_REL(&total_rt, 0);
     }
     return ret;
   }
@@ -191,9 +185,6 @@ private:
   {
     int ret = OB_SUCCESS;
     int64_t unused_id;
-    // int64_t last_request_ts = ATOMIC_LOAD(&last_request_ts_);
-    // int64_t last_gts = ATOMIC_LOAD(&last_gts_);
-    // std::cout << "current_time: " << ObClockGenerator::getClock() * 1000 << ", last_request_ts: " << last_request_ts << ", last_gts: " << last_gts << std::endl;
   #if defined(__x86_64__)
     // 2000ms
     const int64_t CHECK_INTERVAL = 2000000000;
@@ -255,7 +246,6 @@ private:
   }
   int get_number(const int64_t range, const int64_t base_id, int64_t &start_id, int64_t &end_id)
   {
-    // std::cout << "base_id: " << base_id << std::endl;
     int ret = OB_SUCCESS;
     int64_t tmp_id = 0;
     const int64_t last_id = ATOMIC_LOAD(&last_id_);
@@ -322,52 +312,52 @@ public :
 
 //////////////////////basic function test//////////////////////////////////////////
 
-// TEST_F(TestObGtsMgr, handle_gts_request_by_leader)
-// {
-//   TRANS_LOG(INFO, "called", "func", test_info_->name());
-//   const ObAddr client(ObAddr::IPV4, "10.0.0.1", 10000);
-//   const ObAddr server(ObAddr::IPV4, "10.0.0.1", 20000);
-//   MyTimestampService ts_service;
-//   MyResponseRpc response_rpc;
-//   ts_service.init(server);
+TEST_F(TestObGtsMgr, handle_gts_request_by_leader)
+{
+  TRANS_LOG(INFO, "called", "func", test_info_->name());
+  const ObAddr client(ObAddr::IPV4, "10.0.0.1", 10000);
+  const ObAddr server(ObAddr::IPV4, "10.0.0.1", 20000);
+  MyTimestampService ts_service;
+  MyResponseRpc response_rpc;
+  ts_service.init(server);
 
-//   const uint64_t tenant_id = 1001;
-//   const MonotonicTs srr = MonotonicTs::current_time();
-//   const int64_t ts_range = 1;
-//   response_rpc.set_valid_arg(tenant_id, OB_SUCCESS, server, client);
-//   ObGtsRequest request;
-//   ObGtsRpcResult result;
-//   EXPECT_EQ(OB_SUCCESS, request.init(tenant_id, srr, ts_range, client));
-//   EXPECT_EQ(OB_SUCCESS, ts_service.handle_request(request, result));
-//   EXPECT_EQ(tenant_id, result.get_tenant_id());
-//   EXPECT_EQ(OB_SUCCESS, result.get_status());
-//   EXPECT_EQ(srr, result.get_srr());
-//   EXPECT_EQ(ts_range - 1, result.get_gts_end() - result.get_gts_start());
-//   //EXPECT_TRUE(result.get_gts_start() >= srr);
-// }
+  const uint64_t tenant_id = 1001;
+  const MonotonicTs srr = MonotonicTs::current_time();
+  const int64_t ts_range = 1;
+  response_rpc.set_valid_arg(tenant_id, OB_SUCCESS, server, client);
+  ObGtsRequest request;
+  ObGtsRpcResult result;
+  EXPECT_EQ(OB_SUCCESS, request.init(tenant_id, srr, ts_range, client));
+  EXPECT_EQ(OB_SUCCESS, ts_service.handle_request(request, result));
+  EXPECT_EQ(tenant_id, result.get_tenant_id());
+  EXPECT_EQ(OB_SUCCESS, result.get_status());
+  EXPECT_EQ(srr, result.get_srr());
+  EXPECT_EQ(ts_range - 1, result.get_gts_end() - result.get_gts_start());
+  //EXPECT_TRUE(result.get_gts_start() >= srr);
+}
 
-// TEST_F(TestObGtsMgr, handle_local_gts_request)
-// {
-//   TRANS_LOG(INFO, "called", "func", test_info_->name());
-//   const ObAddr server(ObAddr::IPV4, "10.0.0.1", 20000);
-//   MyTimestampService ts_service;
-//   MyResponseRpc response_rpc;
-//   ts_service.init(server);
+TEST_F(TestObGtsMgr, handle_local_gts_request)
+{
+  TRANS_LOG(INFO, "called", "func", test_info_->name());
+  const ObAddr server(ObAddr::IPV4, "10.0.0.1", 20000);
+  MyTimestampService ts_service;
+  MyResponseRpc response_rpc;
+  ts_service.init(server);
 
-//   const uint64_t tenant_id = 1001;
-//   const MonotonicTs srr = MonotonicTs::current_time();
-//   const int64_t ts_range = 1;
-//   response_rpc.set_valid_arg(tenant_id, OB_SUCCESS, server, server);
-//   ObGtsRequest request;
-//   ObGtsRpcResult result;
-//   EXPECT_EQ(OB_SUCCESS, request.init(tenant_id, srr, ts_range, server));
-//   EXPECT_EQ(OB_SUCCESS, ts_service.handle_request(request, result));
-//   EXPECT_EQ(tenant_id, result.get_tenant_id());
-//   EXPECT_EQ(OB_SUCCESS, result.get_status());
-//   EXPECT_EQ(srr, result.get_srr());
-//   EXPECT_EQ(ts_range - 1, result.get_gts_end() - result.get_gts_start());
-//   // EXPECT_TRUE(result.get_gts_start() >= srr);
-// }
+  const uint64_t tenant_id = 1001;
+  const MonotonicTs srr = MonotonicTs::current_time();
+  const int64_t ts_range = 1;
+  response_rpc.set_valid_arg(tenant_id, OB_SUCCESS, server, server);
+  ObGtsRequest request;
+  ObGtsRpcResult result;
+  EXPECT_EQ(OB_SUCCESS, request.init(tenant_id, srr, ts_range, server));
+  EXPECT_EQ(OB_SUCCESS, ts_service.handle_request(request, result));
+  EXPECT_EQ(tenant_id, result.get_tenant_id());
+  EXPECT_EQ(OB_SUCCESS, result.get_status());
+  EXPECT_EQ(srr, result.get_srr());
+  EXPECT_EQ(ts_range - 1, result.get_gts_end() - result.get_gts_start());
+  // EXPECT_TRUE(result.get_gts_start() >= srr);
+}
 
 TEST_F(TestObGtsMgr, invalid_argument)
 {
@@ -388,11 +378,11 @@ TEST_F(TestObGtsMgr, invalid_argument)
   EXPECT_EQ(OB_INVALID_ARGUMENT, request.init(tenant_id, srr, ts_range, ObAddr()));
 }
 
-void f(int64_t thread_id, MyTimestampService &ts_service, const ObGtsRequest &request, ObGtsRpcResult &result) {
+void f(MyTimestampService &ts_service, const ObGtsRequest &request, ObGtsRpcResult &result) {
   std::time_t c = std::time(nullptr);
   int64_t cnt = 0;
   while (std::difftime(time(nullptr), c) < 30) {
-    ts_service.handle_request(thread_id, request, result);
+    ts_service.handle_request(request, result);
     cnt++;
   }
   ::total_cnt += cnt;
@@ -408,7 +398,7 @@ using namespace oceanbase::unittest;
 int main(int argc, char **argv)
 {
   cpu_freq = get_cpufreq_khz();
-  // std::cout << "cpu_freq: " << cpu_freq << std::endl;
+  std::cout << "cpu_freq: " << cpu_freq << std::endl;
   const ObAddr client(ObAddr::IPV4, "10.0.0.1", 10000);
   const ObAddr server(ObAddr::IPV4, "10.0.0.1", 20000);
   MyTimestampService ts_service;
@@ -423,15 +413,14 @@ int main(int argc, char **argv)
   ObGtsRpcResult result;
   request.init(tenant_id, srr, ts_range, client);
   std::vector<std::thread> threads;
-  int THREAD_NUM;
-  std::cout << "input thread num: ";
-  std::cin >> THREAD_NUM;
+  const int THREAD_NUM = 100;
   for (int i = 0; i < THREAD_NUM; i++) {
-    threads.emplace_back(std::thread(&oceanbase::unittest::f, i, std::ref(ts_service), std::cref(request), std::ref(result)));
+    threads.emplace_back(std::thread(&oceanbase::unittest::f, std::ref(ts_service), std::cref(request), std::ref(result)));
   }
   for (int i = 0; i < THREAD_NUM; i++) {
     threads[i].join();
   }
-  printf("qps: %.0f\n", ::total_cnt / 30.0);
+  std::cout << ::total_cnt << std::endl;
+  printf("%.0f\n", ::total_cnt / 30.0);
   return 0;
 }
