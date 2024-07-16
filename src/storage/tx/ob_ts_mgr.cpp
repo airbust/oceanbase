@@ -518,6 +518,7 @@ void ObTsMgr::run1()
       }
     }
     ids.reset();
+    ObTransStatistic::get_instance().try_print_gts_statistics();
   }
 }
 

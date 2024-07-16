@@ -117,9 +117,10 @@ int ObTimestampService::get_timestamp(int64_t &gts)
 
 int ObTimestampService::handle_request(const ObGtsRequest &request, ObGtsRpcResult &result)
 {
-  static int64_t total_cnt = 0;
-  static int64_t total_rt = 0;
-  static const int64_t STATISTICS_INTERVAL_US = 10000000;
+  thread_local int64_t thread_id = GETTID();
+  // static int64_t total_cnt = 0;
+  // static int64_t total_rt = 0;
+  // static const int64_t STATISTICS_INTERVAL_US = 10000000;
   const MonotonicTs start = MonotonicTs::current_time();
   int ret = OB_SUCCESS;
 
@@ -166,16 +167,18 @@ int ObTimestampService::handle_request(const ObGtsRequest &request, ObGtsRpcResu
   if (cost_us > 500 * 1000) {
     TRANS_LOG_RET(WARN, OB_ERR_TOO_MUCH_TIME, "gts request fly too much time", K(request), K(result), K(cost_us));
   }
-  ATOMIC_INC(&total_cnt);
+  // ATOMIC_INC(&total_cnt);
+  ObTransStatistic::get_instance().add_gts_total_cnt(thread_id);
   ObTransStatistic::get_instance().add_gts_request_total_count(request.get_tenant_id(), 1);
-  (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
-  if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
-    TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
-        "avg_rt", (double)total_rt / (double)(total_cnt + 1),
-        "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
-    ATOMIC_STORE(&total_cnt, 0);
-    ATOMIC_STORE(&total_rt, 0);
-  }
+  // (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
+  ObTransStatistic::get_instance().add_gts_total_rt(thread_id, end.mts_ - start.mts_);
+  // if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
+  //   TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
+  //       "avg_rt", (double)total_rt / (double)(total_cnt + 1),
+  //       "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
+  //   ATOMIC_STORE(&total_cnt, 0);
+  //   ATOMIC_STORE(&total_rt, 0);
+  // }
   return ret;
 }
 

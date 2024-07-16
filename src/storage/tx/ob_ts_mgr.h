@@ -28,6 +28,7 @@
 #include "ob_gts_define.h"
 #include "ob_ts_worker.h"
 #include "ob_location_adapter.h"
+#include "ob_trans_event.h"
 
 #define REFRESH_GTS_INTERVEL_US  (500 * 1000)
 

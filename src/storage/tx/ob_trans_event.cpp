@@ -525,5 +525,32 @@ void ObTransStatistic::add_dist_trans_total_used_time(const uint64_t tenant_id, 
   EVENT_ADD(TRANS_DIST_TOTAL_USED_TIME, value);
 }
 
+void ObTransStatistic::add_gts_total_cnt(const int64_t thread_id) {
+  ATOMIC_INC(&gts_total_cnt_[thread_id]);
+}
+
+void ObTransStatistic::add_gts_total_rt(const int64_t thread_id, const int64_t value) {
+  (void)ATOMIC_FAA(&gts_total_rt_[thread_id], value);
+}
+
+void ObTransStatistic::try_print_gts_statistics() {
+  static const int64_t STATISTICS_INTERVAL_US = 10000000;
+  static int64_t last_total_cnt = 0;
+  static int64_t last_total_rt = 0;
+  int64_t total_cnt = 0;
+  int64_t total_rt = 0;
+  for (int i = 0; i < MAXNUM; i++) {
+    (void)ATOMIC_FAA(&total_cnt, gts_total_cnt_[i]);
+    (void)ATOMIC_FAA(&total_rt, gts_total_rt_[i]);
+  }
+  int64_t total_cnt1 = total_cnt - last_total_cnt;
+  int64_t total_rt1 = total_rt - last_total_rt;
+  TRANS_LOG(INFO, "handle gts request statistics", K(total_rt1), K(total_cnt1),
+        "avg_rt", (double)total_rt1 / (double)(total_cnt1 + 1),
+        "avg_cnt", (double)total_cnt1 / (double)(STATISTICS_INTERVAL_US / 1000000));
+  last_total_cnt = total_cnt;
+  last_total_rt = total_rt;
+}
+
 } // transaction
 } // oceanbase
