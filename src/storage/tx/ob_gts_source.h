@@ -36,6 +36,24 @@ class ObIGtsRequestRpc;
 namespace transaction
 {
 
+class ObLogGtsStatistics
+{
+  static const int64_t MAXNUM = 100;
+  static const int64_t STATISTICS_INTERVAL_US = 10000000;
+
+public:
+  ObLogGtsStatistics() { reset(); }
+  ~ObLogGtsStatistics() {}
+  void reset();
+  void add_gts_total_cnt(const int64_t thread_id);
+  void add_gts_total_rt(const int64_t thread_id, const int64_t value);
+  void try_print_gts_statistics();
+
+private:
+  int64_t total_cnts_[MAXNUM];
+  int64_t total_rts_[MAXNUM];
+};
+
 class ObGtsStatistics
 {
   static const int64_t STAT_INTERVAL = 5 * 1000 * 1000;

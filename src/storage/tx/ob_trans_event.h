@@ -14,7 +14,6 @@
 #define OCEANBASE_TRANSACTION_OB_TRANS_EVENT_
 
 #include "ob_trans_define.h"
-#define MAXNUM 120005
 
 namespace oceanbase
 {
@@ -200,13 +199,6 @@ public:
   // count the number of batch commit trans
   void add_batch_commit_trans_count(const uint64_t tenant_id, const int64_t value);
   void add_trans_log_total_size(const uint64_t tenant_id, const int64_t value);
-  
-  void add_gts_total_cnt(const int64_t thread_id);
-  void add_gts_total_rt(const int64_t thread_id, const int64_t value);
-  void try_print_gts_statistics();
-private:
-  int64_t gts_total_cnt_[MAXNUM];
-  int64_t gts_total_rt_[MAXNUM];
 
 private:
   ObTransStatistic() : sys_trans_count_stat_("trans_sys_count"), user_trans_count_stat_("trans_user_count"),
@@ -286,7 +278,6 @@ private:
   ObTransStatItem gts_try_acquire_total_count_stat_;
   ObTransStatItem gts_try_wait_elapse_total_count_stat_;
   ObTransStatItem batch_commit_trans_count_stat_;
-
 };
 
 } // transaction

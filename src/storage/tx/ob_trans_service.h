@@ -35,6 +35,7 @@
 #include "ob_trans_event.h"
 #include "ob_dup_table.h"
 #include "ob_gts_rpc.h"
+#include "ob_gts_source.h"
 #include "ob_gti_source.h"
 #include "ob_tx_version_mgr.h"
 #include "ob_tx_standby_cleanup.h"
@@ -354,6 +355,8 @@ private:
   share::ObLightHashMap<ObCommonID, ObRollbackSPMsgGuard, ObRollbackSPMsgGuardAlloc, common::SpinRWLock, 1 << 16 /*bucket_num*/> rollback_sp_msg_mgr_;
 private:
   DISALLOW_COPY_AND_ASSIGN(ObTransService);
+public:
+  ObLogGtsStatistics gts_stat_;
 };
 
 } // transaction

@@ -16,6 +16,7 @@
 #include "observer/ob_server_struct.h"
 #include "observer/ob_srv_network_frame.h"
 #include "ob_timestamp_access.h"
+#include "storage/tx/ob_trans_service.h"
 #include "storage/tx_storage/ob_ls_map.h"
 #include "storage/tx_storage/ob_ls_service.h"
 #include "share/scn.h"
@@ -168,10 +169,11 @@ int ObTimestampService::handle_request(const ObGtsRequest &request, ObGtsRpcResu
     TRANS_LOG_RET(WARN, OB_ERR_TOO_MUCH_TIME, "gts request fly too much time", K(request), K(result), K(cost_us));
   }
   // ATOMIC_INC(&total_cnt);
-  ObTransStatistic::get_instance().add_gts_total_cnt(thread_id);
+  ObTransService *txs = MTL(ObTransService*);
+  txs->gts_stat_.add_gts_total_cnt(thread_id);
   ObTransStatistic::get_instance().add_gts_request_total_count(request.get_tenant_id(), 1);
   // (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
-  ObTransStatistic::get_instance().add_gts_total_rt(thread_id, end.mts_ - start.mts_);
+  txs->gts_stat_.add_gts_total_rt(thread_id, end.mts_ - start.mts_);
   // if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
   //   TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
   //       "avg_rt", (double)total_rt / (double)(total_cnt + 1),

@@ -29,6 +29,42 @@ using namespace share;
 
 namespace transaction
 {
+/////////////////////Implementation of ObLogGtsStatistics//////////////////////
+void ObLogGtsStatistics::reset()
+{
+  memset(total_cnts_, 0, sizeof(total_cnts_));
+  memset(total_rts_, 0, sizeof(total_rts_));
+}
+
+void ObLogGtsStatistics::add_gts_total_cnt(const int64_t thread_id)
+{
+  ATOMIC_INC(&total_cnts_[thread_id % MAXNUM]);
+}
+
+void ObLogGtsStatistics::add_gts_total_rt(const int64_t thread_id, const int64_t value)
+{
+  (void)ATOMIC_FAA(&total_rts_[thread_id % MAXNUM], value);
+}
+
+void ObLogGtsStatistics::try_print_gts_statistics()
+{
+  static int64_t last_total_cnt = 0;
+  static int64_t last_total_rt = 0;
+  int64_t total_cnt1 = 0;
+  int64_t total_rt1 = 0;
+  for (int i = 0; i < MAXNUM; i++) {
+    (void)ATOMIC_FAA(&total_cnt1, total_cnts_[i]);
+    (void)ATOMIC_FAA(&total_rt1, total_rts_[i]);
+  }
+  int64_t total_cnt = total_cnt1 - last_total_cnt;
+  int64_t total_rt = total_rt1 - last_total_rt;
+  TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
+        "avg_rt", (double)total_rt / (double)(total_cnt + 1),
+        "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
+  ATOMIC_STORE_REL(&last_total_cnt, total_cnt1);
+  ATOMIC_STORE_REL(&last_total_rt, total_rt1);
+}
+
 /////////////////////Implementation of ObGtsStatistics/////////////////////////
 void ObGtsStatistics::reset()
 {

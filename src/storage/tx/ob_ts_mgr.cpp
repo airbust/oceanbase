@@ -19,6 +19,7 @@
 #include "share/schema/ob_multi_version_schema_service.h"
 #include "share/schema/ob_schema_getter_guard.h"
 #include "share/location_cache/ob_location_service.h"
+#include "storage/tx/ob_trans_service.h"
 #include "lib/string/ob_string.h"
 #include "lib/allocator/page_arena.h"
 #include "common/object/ob_object.h"
@@ -498,6 +499,7 @@ void ObTsMgr::run1()
     ts_source_info_map_.for_each(gts_refresh_funtor);
     ts_source_info_map_.for_each(get_obsolete_tenant_functor);
     for (int64_t i = 0; i < ids.count(); i++) {
+      MTL(ObTransService *)->gts_stat_.try_print_gts_statistics();
       const uint64_t tenant_id = ids.at(i);
       MTL_SWITCH(tenant_id) {
         TRANS_LOG(WARN, "gts is not used for a long time", K(tenant_id));
@@ -518,7 +520,6 @@ void ObTsMgr::run1()
       }
     }
     ids.reset();
-    ObTransStatistic::get_instance().try_print_gts_statistics();
   }
 }
 
