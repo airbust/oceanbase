@@ -96,6 +96,7 @@ void ObTxLoopWorker::run1()
   bool can_check_and_retry_start_working = false;
 
   while (!has_set_stop()) {
+    MTL(ObTransService *)->gts_stat_.try_print_gts_statistics();
     start_time_us = ObTimeUtility::current_time();
     if (REACH_TIME_INTERVAL(60000000)) {
       ObLeakChecker::dump();
