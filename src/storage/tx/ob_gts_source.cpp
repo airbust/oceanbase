@@ -48,7 +48,7 @@ void ObLogGtsStatistics::add_gts_total_rt(const int64_t thread_id, const int64_t
 
 void ObLogGtsStatistics::try_print_gts_statistics()
 {
-  if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
+  if (TC_REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
     int64_t total_cnt = 0;
     int64_t total_rt = 0;
     for (int i = 0; i < MAXNUM; i++) {
