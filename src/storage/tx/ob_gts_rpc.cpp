@@ -208,6 +208,7 @@ int ObGtsRequestRpc::post(const uint64_t tenant_id, const ObAddr &server,
     const ObGtsRequest &msg)
 {
   int ret = OB_SUCCESS;
+  ObGtsRpcResult result;
   if (!is_inited_) {
     ret = OB_NOT_INIT;
     TRANS_LOG(WARN, "gts request rpc not inited", KR(ret));
@@ -244,7 +245,7 @@ int ObGtsRequestRpc::post(const uint64_t tenant_id, const ObAddr &server,
   } else if (OB_FAIL(rpc_proxy_->to(server).by(tenant_id)
                                            .timeout(ObGtsRpcResult::OB_GTS_RPC_TIMEOUT)
                                            .group_id(OBCG_ID_SERVICE)
-                                           .post(msg, &gts_request_cb_))) {
+                                           .post(msg, result))) {
     TRANS_LOG(WARN, "post gts request failed", KR(ret), K(server), K(msg));
   } else {
     TRANS_LOG(DEBUG, "post gts request success", K(server), K(msg));

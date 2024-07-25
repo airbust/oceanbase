@@ -282,9 +282,10 @@ int ObAdminServerExecutor::execute(int argc, char *argv[])
     COMMON_LOG(WARN, "get_proxy failed", K(ret));
   } else {
     srv_proxy_.set_server(dst_server_);
-    srv_proxy_.set_timeout(timeout_);
+    srv_proxy_.set_timeout(ObGtsRpcResult::OB_GTS_RPC_TIMEOUT);
     int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
     srv_proxy_.set_tenant(tenant_id);
+    srv_proxy_.set_group_id(OBCG_ID_SERVICE);
     inited_ = true;
     COMMON_LOG(INFO, "process", K(cmd_.c_str()), K_(timeout), K(tenant_id));
     vector<ObAdminRoutine*>::iterator it = find_if(g_routines.begin(), g_routines.end(), RoutineComparer(cmd_));

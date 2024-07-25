@@ -42,8 +42,8 @@ private:
 private:
   bool inited_;
   obrpc::ObNetClient client_;
-  obrpc::ObSrvRpcProxy srv_proxy_;
-
+  obrpc::ObGtsRpcProxy srv_proxy_;
+  
   common::ObAddr dst_server_;
   int64_t timeout_;
   std::string cmd_;

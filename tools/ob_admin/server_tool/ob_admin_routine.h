@@ -18,6 +18,7 @@
 #include <vector>
 #include "lib/net/ob_addr.h"
 #include "share/ob_srv_rpc_proxy.h"
+#include "storage/tx/ob_gts_rpc.h"
 #include "rpc/obrpc/ob_net_client.h"
 #include "share/ob_rpc_struct.h"
 
@@ -59,7 +60,7 @@ public:
     return action_name_ + " " + args_;
   }
 
-  void set_client(obrpc::ObSrvRpcProxy* client) { client_ = client; }
+  void set_client(obrpc::ObGtsRpcProxy* client) { client_ = client; }
 protected:
   const string action_name_;
   string args_;
@@ -67,7 +68,7 @@ protected:
   const int version_;
   int64_t timeout_;
   string target_;
-  obrpc::ObSrvRpcProxy* client_;
+  obrpc::ObGtsRpcProxy* client_;
 }; /* end of class ObAdminRoutine */
 
 
