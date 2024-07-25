@@ -72,24 +72,53 @@ bool ObAdminRoutine::match(const string &cmd) const
   return action == action_name_;
 }
 
-DEF_COMMAND(TRANS, send_gts_request, 1, "")
+namespace oceanbase {
+namespace tools {
+void f(obrpc::ObGtsRpcProxy* client_, const ObGtsRequest &msg) {
+  std::time_t c = std::time(nullptr);
+  while (std::difftime(time(nullptr), c) < 30) {
+    int ret = OB_SUCCESS;
+    obrpc::ObGtsRpcResult result;
+    if (OB_SUCCESS != (ret = client_->post(msg, result))) {
+      COMMON_LOG(ERROR, "send gts request fail", K(ret));
+    } else {
+      // std::cout << "result: " << result.get_gts_start() << std::endl;
+      COMMON_LOG(INFO, "send gts request");
+    }
+  }
+}
+}
+};
+
+DEF_COMMAND(TRANS, send_gts_request, 1, "n # n clients send gts request")
 {
   int ret = OB_SUCCESS;
-  int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
-  ObAddr self(oceanbase::common::ObAddr::VER::IPV4, "127.0.0.1", 2500);
-  ObGtsRequest msg;
-  const int64_t ts_range_size = 1;
-  const MonotonicTs srr = MonotonicTs::current_time();
-  msg.init(tenant_id, srr, ts_range_size, self);
-  // obrpc::ObGtsRPCCB<oceanbase::obrpc::OB_GET_GTS_REQUEST> gts_request_cb_;
-  obrpc::ObGtsRpcResult result;
-  if (OB_SUCCESS != (ret = client_->post(msg, result))) {
-    COMMON_LOG(ERROR, "send gts request fail", K(ret));
+  string arg_str;
+  if (cmd_ == action_name_) {
+    ret = OB_INVALID_ARGUMENT;
+    ADMIN_WARN("should provide client number");
   } else {
-    usleep(100000);
-    // gts_request_cb_.process();
-    std::cout << "result: " << result.get_gts_start() << std::endl;
-    COMMON_LOG(INFO, "send gts request", K(tenant_id));
+    arg_str = cmd_.substr(action_name_.length() + 1);
+  }
+  int64_t client_num;
+  if (OB_FAIL(ret)) {
+  } else if (1 != sscanf(arg_str.c_str(), "%ld", &client_num)) {
+    ret = OB_INVALID_ARGUMENT;
+    COMMON_LOG(WARN, "invalid arg", K(ret));
+  } else {
+    int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
+    ObAddr self(oceanbase::common::ObAddr::VER::IPV4, "127.0.0.1", 2500);
+    ObGtsRequest msg;
+    const int64_t ts_range_size = 1;
+    const MonotonicTs srr = MonotonicTs::current_time();
+    msg.init(tenant_id, srr, ts_range_size, self);
+    std::vector<std::thread> threads;
+    for (int i = 0; i < client_num; i++) {
+      threads.emplace_back(std::thread(&oceanbase::tools::f, client_, cref(msg)));
+    }
+    for (int i = 0; i < client_num; i++) {
+      threads[i].join();
+    }
   }
   return ret;
 }
