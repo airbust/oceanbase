@@ -78,11 +78,12 @@ void f(obrpc::ObGtsRpcProxy* client_, const ObGtsRequest &msg) {
   std::time_t c = std::time(nullptr);
   while (std::difftime(time(nullptr), c) < 30) {
     int ret = OB_SUCCESS;
-    obrpc::ObGtsRpcResult result;
-    if (OB_SUCCESS != (ret = client_->post(msg, result))) {
+    obrpc::ObGtsRPCCB<obrpc::OB_GET_GTS_REQUEST> gts_request_cb_;
+    if (OB_SUCCESS != (ret = client_->post(msg, &gts_request_cb_))) {
       COMMON_LOG(ERROR, "send gts request fail", K(ret));
     } else {
       // std::cout << "result: " << result.get_gts_start() << std::endl;
+      usleep(1000000);
       COMMON_LOG(INFO, "send gts request");
     }
   }
@@ -106,7 +107,8 @@ DEF_COMMAND(TRANS, send_gts_request, 1, "n # n clients send gts request")
     ret = OB_INVALID_ARGUMENT;
     COMMON_LOG(WARN, "invalid arg", K(ret));
   } else {
-    int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
+    // int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
+    int64_t tenant_id = 1003;
     ObAddr self(oceanbase::common::ObAddr::VER::IPV4, "127.0.0.1", 2500);
     ObGtsRequest msg;
     const int64_t ts_range_size = 1;

@@ -77,7 +77,7 @@ class ObGtsRpcProxy : public obrpc::ObRpcProxy
 public:
   DEFINE_TO(ObGtsRpcProxy);
 
-  RPC_S(PR1 post, OB_GET_GTS_REQUEST, (transaction::ObGtsRequest), ObGtsRpcResult);
+  RPC_AP(PR1 post, OB_GET_GTS_REQUEST, (transaction::ObGtsRequest), ObGtsRpcResult);
   RPC_AP(PR1 post, OB_GET_GTS_ERR_RESPONSE, (transaction::ObGtsErrResponse), ObGtsRpcResult);
 };
 
@@ -149,7 +149,7 @@ public:
     const ObGtsRpcResult &result = ObGtsRpcProxy::AsyncCB<PC>::result_;
     const ObAddr &dst = ObGtsRpcProxy::AsyncCB<PC>::dst_;
     ObRpcResultCode &rcode = ObGtsRpcProxy::AsyncCB<PC>::rcode_;
-    std::cout << "result: " << result.get_srr().mts_ << " " << result.get_gts_start() << std::endl;
+    std::cout << "result: " << result.get_gts_start() << std::endl;
     return process_(result, dst, rcode);
   }
   int process(const obrpc::ObGtsRpcResult &result, const common::ObAddr &dst,
