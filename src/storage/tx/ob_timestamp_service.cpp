@@ -169,7 +169,7 @@ int ObTimestampService::handle_request(const ObGtsRequest &request, ObGtsRpcResu
   ATOMIC_INC(&total_cnt);
   ObTransStatistic::get_instance().add_gts_request_total_count(request.get_tenant_id(), 1);
   (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
-  if (TC_REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
+  if (request.get_tenant_id() == 1004 && REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
     TRANS_LOG(INFO, "handle gts request statistics", K(total_rt), K(total_cnt),
         "avg_rt", (double)total_rt / (double)(total_cnt + 1),
         "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
