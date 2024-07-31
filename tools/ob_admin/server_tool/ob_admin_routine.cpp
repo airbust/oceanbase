@@ -74,16 +74,15 @@ bool ObAdminRoutine::match(const string &cmd) const
 
 namespace oceanbase {
 namespace tools {
-void f(obrpc::ObGtsRpcProxy* client_, const ObGtsRequest &msg) {
+void f(obrpc::ObGtsRpcProxy* client_, const ObGtsRequest &msg, const int64_t interval) {
   std::time_t c = std::time(nullptr);
-  while (std::difftime(time(nullptr), c) < 30) {
+  while (std::difftime(time(nullptr), c) < interval) {
     int ret = OB_SUCCESS;
     obrpc::ObGtsRPCCB<obrpc::OB_GET_GTS_REQUEST> gts_request_cb_;
     if (OB_SUCCESS != (ret = client_->post(msg, &gts_request_cb_))) {
       COMMON_LOG(ERROR, "send gts request fail", K(ret));
     } else {
-      // std::cout << "result: " << result.get_gts_start() << std::endl;
-      usleep(1000000);
+      // usleep(1000000);
       COMMON_LOG(INFO, "send gts request");
     }
   }
@@ -91,7 +90,7 @@ void f(obrpc::ObGtsRpcProxy* client_, const ObGtsRequest &msg) {
 }
 };
 
-DEF_COMMAND(TRANS, send_gts_request, 1, "n # n clients send gts request")
+DEF_COMMAND(TRANS, send_gts_request, 1, "n:interval # n clients send gts request")
 {
   int ret = OB_SUCCESS;
   string arg_str;
@@ -102,13 +101,13 @@ DEF_COMMAND(TRANS, send_gts_request, 1, "n # n clients send gts request")
     arg_str = cmd_.substr(action_name_.length() + 1);
   }
   int64_t client_num;
+  int64_t interval;
   if (OB_FAIL(ret)) {
-  } else if (1 != sscanf(arg_str.c_str(), "%ld", &client_num)) {
+  } else if (2 != sscanf(arg_str.c_str(), "%ld:%ld", &client_num, &interval)) {
     ret = OB_INVALID_ARGUMENT;
     COMMON_LOG(WARN, "invalid arg", K(ret));
   } else {
-    // int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
-    int64_t tenant_id = 1003;
+    int64_t tenant_id = atoll(getenv("tenant")?:"0")?:OB_SYS_TENANT_ID;
     ObAddr self(oceanbase::common::ObAddr::VER::IPV4, "127.0.0.1", 2500);
     ObGtsRequest msg;
     const int64_t ts_range_size = 1;

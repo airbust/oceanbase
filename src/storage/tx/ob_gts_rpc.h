@@ -149,7 +149,7 @@ public:
     const ObGtsRpcResult &result = ObGtsRpcProxy::AsyncCB<PC>::result_;
     const ObAddr &dst = ObGtsRpcProxy::AsyncCB<PC>::dst_;
     ObRpcResultCode &rcode = ObGtsRpcProxy::AsyncCB<PC>::rcode_;
-    std::cout << "result: " << result.get_gts_start() << std::endl;
+    // std::cout << "result: " << result.get_gts_start() << std::endl;
     return process_(result, dst, rcode);
   }
   int process(const obrpc::ObGtsRpcResult &result, const common::ObAddr &dst,
@@ -160,23 +160,23 @@ public:
   void set_tenant_id(uint64_t tenant_id) {tenant_id_ = tenant_id;}
   void on_timeout()
   {
-    int ret = OB_SUCCESS;
-    const common::ObAddr &dst = ObGtsRpcProxy::AsyncCB<PC>::dst_;
-    if (!is_inited_) {
-      TRANS_LOG(WARN, "ObGtsRPCCB not inited");
-    } else {
-      if (EXECUTE_COUNT_PER_SEC(16)) {
-        TRANS_LOG(WARN, "gts rpc timeout", K(dst), K_(tenant_id));
-      }
-      if (NULL == ts_mgr_) {
-        ret = OB_ERR_UNEXPECTED;
-        TRANS_LOG(WARN, "gts local cache mgr is NULL", K(ret));
-      } else if (OB_FAIL(ts_mgr_->refresh_gts_location(tenant_id_))) {
-        TRANS_LOG(WARN, "refresh gts location fail", K(ret));
-      } else {
-        // do nothing
-      }
-    }
+    // int ret = OB_SUCCESS;
+    // const common::ObAddr &dst = ObGtsRpcProxy::AsyncCB<PC>::dst_;
+    // if (!is_inited_) {
+    //   TRANS_LOG(WARN, "ObGtsRPCCB not inited");
+    // } else {
+    //   if (EXECUTE_COUNT_PER_SEC(16)) {
+    //     TRANS_LOG(WARN, "gts rpc timeout", K(dst), K_(tenant_id));
+    //   }
+    //   if (NULL == ts_mgr_) {
+    //     ret = OB_ERR_UNEXPECTED;
+    //     TRANS_LOG(WARN, "gts local cache mgr is NULL", K(ret));
+    //   } else if (OB_FAIL(ts_mgr_->refresh_gts_location(tenant_id_))) {
+    //     TRANS_LOG(WARN, "refresh gts location fail", K(ret));
+    //   } else {
+    //     // do nothing
+    //   }
+    // }
   }
 private:
   int process_(const obrpc::ObGtsRpcResult &result, const common::ObAddr &dst,
