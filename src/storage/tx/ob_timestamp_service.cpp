@@ -20,6 +20,7 @@
 #include "storage/tx_storage/ob_ls_map.h"
 #include "storage/tx_storage/ob_ls_service.h"
 #include "share/scn.h"
+#include "deps/oblib/src/lib/time/ob_tsc_timestamp.h"
 
 namespace oceanbase
 {
@@ -34,9 +35,9 @@ int ObTimestampService::init(rpc::frame::ObReqTransport *req_transport)
   self_ = self;
   service_type_ = ServiceType::TimestampService;
   pre_allocated_range_ = TIMESTAMP_PREALLOCATED_RANGE;
-  ATOMIC_STORE(&last_gts_, 0);
-  ATOMIC_STORE(&last_request_ts_, 0);
-  ATOMIC_STORE(&check_gts_speed_lock_, 0);
+  ATOMIC_STORE_REL(&last_gts_, 0);
+  ATOMIC_STORE_REL(&last_request_ts_, 0);
+  ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
   return rpc_.init(req_transport, self);
 }
 
@@ -67,24 +68,36 @@ int ObTimestampService::get_timestamp(int64_t &gts)
 {
   int ret = OB_SUCCESS;
   int64_t unused_id;
-  // 100ms
-  const int64_t CHECK_INTERVAL = 100000000;
-  const int64_t current_time = ObClockGenerator::getClock() * 1000;
-  int64_t last_request_ts = ATOMIC_LOAD(&last_request_ts_);
-  int64_t time_delta = current_time - last_request_ts;
-
+  #if defined(__x86_64__)
+    // 2000ms
+    const int64_t CHECK_INTERVAL = 2000000000;
+    thread_local uint64_t last_rdtsc;
+    thread_local int64_t current_time;
+    static const int64_t cpu_freq = get_cpufreq_khz();
+    uint64_t tmp = rdtsc();
+    if (last_rdtsc == 0 || tmp - last_rdtsc >= cpu_freq * 1000) { // 1000ms
+      current_time = ObClockGenerator::getClock() * 1000;
+      last_rdtsc = tmp;
+    }
+  #else
+    // 100ms
+    const int64_t CHECK_INTERVAL = 100000000;
+    const int64_t current_time = ObClockGenerator::getClock() * 1000;
+  #endif
   ret = get_number(1, current_time, gts, unused_id);
 
   if (OB_SUCC(ret)) {
+    int64_t last_request_ts = ATOMIC_LOAD(&last_request_ts_);
+    int64_t time_delta = current_time - last_request_ts;
     if ((last_request_ts == 0 || time_delta < 0) && ATOMIC_BCAS(&check_gts_speed_lock_, 0, 1)) {
       last_request_ts = ATOMIC_LOAD(&last_request_ts_);
       time_delta = current_time - last_request_ts;
       // before, we only do a fast check, and we should check again after we get the lock
       if (last_request_ts == 0 || time_delta < 0) {
-        ATOMIC_STORE(&last_request_ts_, current_time);
-        ATOMIC_STORE(&last_gts_, gts);
+        ATOMIC_STORE_REL(&last_request_ts_, current_time);
+        ATOMIC_STORE_REL(&last_gts_, gts);
       }
-      ATOMIC_STORE(&check_gts_speed_lock_, 0);
+      ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
     } else if (time_delta > CHECK_INTERVAL && ATOMIC_BCAS(&check_gts_speed_lock_, 0, 1)) {
       last_request_ts = ATOMIC_LOAD(&last_request_ts_);
       time_delta = current_time - last_request_ts;
@@ -102,14 +115,14 @@ int ObTimestampService::get_timestamp(int64_t &gts)
               K(compensation_value));
         }
         if (OB_SUCC(ret)) {
-          ATOMIC_STORE(&last_request_ts_, current_time);
-          ATOMIC_STORE(&last_gts_, gts);
+          ATOMIC_STORE_REL(&last_request_ts_, current_time);
+          ATOMIC_STORE_REL(&last_gts_, gts);
         }
         TRANS_LOG(DEBUG, "check the gts service advancing speed", K(ret), K(current_time),
             K(last_request_ts), K(time_delta), K(last_gts), K(gts), K(gts_delta),
             K(compensation_value));
       }
-      ATOMIC_STORE(&check_gts_speed_lock_, 0);
+      ATOMIC_STORE_REL(&check_gts_speed_lock_, 0);
     }
   }
 
@@ -261,7 +274,7 @@ int ObTimestampService::switch_to_leader()
       int64_t version_val = version.is_valid() ? version.get_val_for_gts() : -1;
       if (version_val >= ATOMIC_LOAD(&limited_id_)) {
         inc_update(&last_id_, version_val);
-        ATOMIC_STORE(&tmp_last_id_, 0);
+        ATOMIC_STORE_REL(&tmp_last_id_, 0);
       } else if (ATOMIC_LOAD(&tmp_last_id_) != 0 && version_val > ATOMIC_LOAD(&tmp_last_id_)) {
         inc_update(&tmp_last_id_, version_val);
       } else {
