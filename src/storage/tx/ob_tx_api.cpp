@@ -803,6 +803,17 @@ int ObTransService::get_ls_read_snapshot_version(const share::ObLSID &local_ls_i
   return ret;
 }
 
+int ObTransService::get_gts()
+{
+  int ret = OB_SUCCESS;
+  SCN gts_cache;
+  if (OB_FAIL(OB_TS_MGR.my_get_gts(tenant_id_, NULL, gts_cache))) {
+    TRANS_LOG(WARN, "get ts sync error", K(ret));
+  }
+  TRANS_LOG(INFO, "my get gts", K(ret));
+  return ret;
+}
+
 int ObTransService::get_weak_read_snapshot_version(const int64_t max_read_stale_us_for_user,
                                                    const bool local_single_ls,
                                                    SCN &snapshot)

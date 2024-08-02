@@ -152,6 +152,46 @@ void ObGtsSource::destroy()
 }
 
 //Get the value of gts cache, no need to be up-to-date
+int ObGtsSource::my_get_gts(ObTsCbTask *task, int64_t &gts)
+{
+  int ret = OB_SUCCESS;
+  int tmp_ret = OB_SUCCESS;
+  int64_t tmp_gts = 0;
+
+  if (OB_UNLIKELY(!is_inited_)) {
+    ret = OB_NOT_INIT;
+    TRANS_LOG(WARN, "not inited", KR(ret));
+  // } else if (OB_SUCCESS == (ret = gts_local_cache_.get_gts(tmp_gts))) {
+  //   //Able to find a suitable gts value
+  //   gts = tmp_gts;
+  // } else if (OB_EAGAIN != ret) {
+  //   TRANS_LOG(WARN, "get gts error", KR(ret), KP(task));
+  // } else if (NULL == task) {
+  //   // do nothing
+  } else {
+    //Generate the latest gts value of the task into the queue
+    // const int64_t queue_index = static_cast<int64_t>(task->hash() % GET_GTS_QUEUE_COUNT);
+    // ObGTSTaskQueue *queue = &(queue_[queue_index]);
+    // if (OB_SUCCESS != (tmp_ret = queue->push(task))) {
+    //   //The number of queues is sufficient, so failure is not allowed
+    //   TRANS_LOG(ERROR, "gts task push error", "ret", tmp_ret, KP(task));
+    //   //overwrite retcode
+    //   ret = tmp_ret;
+    // } else {
+      const bool need_refresh_gts_location = false;
+      if (OB_SUCCESS != (tmp_ret = refresh_gts_(need_refresh_gts_location))) {
+        if (EXECUTE_COUNT_PER_SEC(16)) {
+          TRANS_LOG(WARN, "refresh gts failed", K(tmp_ret));
+        }
+      }
+    // }
+  }
+  gts_statistics_.inc_get_gts_cache_cnt();
+
+  return ret;
+}
+
+//Get the value of gts cache, no need to be up-to-date
 int ObGtsSource::get_gts(ObTsCbTask *task, int64_t &gts)
 {
   int ret = OB_SUCCESS;

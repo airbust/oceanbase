@@ -31,11 +31,14 @@ namespace sql
 
 int ObXaStartExecutor::execute(ObExecContext &ctx, ObXaStartStmt &stmt)
 {
-  int ret = OB_NOT_SUPPORTED;
-  LOG_USER_ERROR(OB_NOT_SUPPORTED, "XA protocol start interface");
+  int ret = OB_SUCCESS;
   UNUSED(ctx);
   UNUSED(stmt);
   // 暂时禁掉mysql模式下的xa调用
+  std::time_t c = std::time(nullptr);
+  while (std::difftime(time(nullptr), c) < 30) {
+    MTL(ObTransService*)->get_gts();
+  }
   return ret;
 }
 

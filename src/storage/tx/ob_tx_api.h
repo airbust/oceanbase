@@ -598,3 +598,5 @@ int sql_stmt_start_hook(const ObXATransID &xid,
                         const uint32_t session_id,
                         const uint32_t real_session_id);
 int sql_stmt_end_hook(const ObXATransID &xid, ObTxDesc &tx);
+
+int get_gts();

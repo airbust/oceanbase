@@ -815,6 +815,49 @@ int ObTsMgr::update_gts(const uint64_t tenant_id, const int64_t gts, bool &updat
   return ret;
 }
 
+int ObTsMgr::my_get_gts(const uint64_t tenant_id, ObTsCbTask *task, SCN &scn)
+{
+  int ret = OB_SUCCESS;
+  int64_t gts = 0;//need be invalid value for SCN
+  if (OB_UNLIKELY(!is_inited_)) {
+    ret = OB_NOT_INIT;
+    TRANS_LOG(WARN, "ObTsMgr is not inited", K(ret));
+  } else if (OB_UNLIKELY(!is_running_)) {
+    ret = OB_NOT_RUNNING;
+    TRANS_LOG(WARN, "ObTsMgr is not running", K(ret));
+  } else if (OB_UNLIKELY(!is_valid_tenant_id(tenant_id))) {
+    ret = OB_INVALID_ARGUMENT;
+    TRANS_LOG(WARN, "invalid argument", KR(ret), K(tenant_id), KP(task));
+  } else {
+    ObTsSourceInfo *ts_source_info = NULL;
+    ObGtsSource *ts_source = NULL;
+    ObTsSourceInfoGuard info_guard;
+    if (OB_FAIL(get_ts_source_info_opt_(tenant_id, info_guard, true, true))) {
+      TRANS_LOG(WARN, "get ts source info failed", K(ret), K(tenant_id));
+    } else if (OB_ISNULL(ts_source_info = info_guard.get_ts_source_info())) {
+      ret = OB_ERR_UNEXPECTED;
+      TRANS_LOG(WARN, "ts source info is NULL", K(ret), K(tenant_id));
+    } else {
+      if (OB_ISNULL(ts_source = ts_source_info->get_gts_source())) {
+        ret = OB_ERR_UNEXPECTED;
+        TRANS_LOG(WARN, "ts source is NULL", K(ret));
+      } else if (OB_FAIL(ts_source->my_get_gts(task, gts))) {
+        if (OB_EAGAIN != ret) {
+          TRANS_LOG(WARN, "get gts error", K(ret), K(tenant_id), KP(task));
+        }
+      }
+    }
+  }
+
+  if (OB_SUCC(ret)) {
+    if (OB_FAIL(scn.convert_for_gts(gts))) {
+      TRANS_LOG(WARN, "failed to convert_for_gts", K(ret), K(tenant_id), K(gts));
+    }
+  }
+
+  return ret;
+}
+
 int ObTsMgr::get_gts(const uint64_t tenant_id, ObTsCbTask *task, SCN &scn)
 {
   int ret = OB_SUCCESS;
