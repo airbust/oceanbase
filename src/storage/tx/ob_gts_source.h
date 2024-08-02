@@ -105,6 +105,7 @@ public:
   int update_gts(const int64_t gts, bool &update);
   int get_gts(const MonotonicTs stc, ObTsCbTask *task, int64_t &gts, MonotonicTs &receive_gts_ts);
   int get_gts(ObTsCbTask *task, int64_t &gts);
+  int my_get_gts(ObTsCbTask *task, int64_t &gts);
   int wait_gts_elapse(const int64_t ts, ObTsCbTask *task, bool &need_wait);
   int wait_gts_elapse(const int64_t ts);
   int refresh_gts(const bool need_refresh);

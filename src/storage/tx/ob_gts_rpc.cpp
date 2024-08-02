@@ -243,7 +243,7 @@ int ObGtsRequestRpc::post(const uint64_t tenant_id, const ObAddr &server,
     }
   } else if (OB_FAIL(rpc_proxy_->to(server).by(tenant_id)
                                            .timeout(ObGtsRpcResult::OB_GTS_RPC_TIMEOUT)
-                                           .group_id(OBCG_ID_SERVICE)
+                                          //  .group_id(OBCG_ID_SERVICE)
                                            .post(msg, &gts_request_cb_))) {
     TRANS_LOG(WARN, "post gts request failed", KR(ret), K(server), K(msg));
   } else {
