@@ -939,8 +939,8 @@ int ObTsMgr::get_gts(const uint64_t tenant_id,
       }
     }
   }
-
   if (OB_SUCC(ret)) {
+    TRANS_LOG(INFO, "successfully get gts", K(ret), K(tenant_id), K(gts));
     if (OB_FAIL(scn.convert_for_gts(gts))) {
       TRANS_LOG(WARN, "failed to convert_for_gts", K(ret), K(tenant_id), K(gts));
     }

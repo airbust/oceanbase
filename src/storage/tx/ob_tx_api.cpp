@@ -807,8 +807,10 @@ int ObTransService::get_gts()
 {
   int ret = OB_SUCCESS;
   SCN gts_cache;
-  if (OB_FAIL(OB_TS_MGR.my_get_gts(tenant_id_, NULL, gts_cache))) {
-    TRANS_LOG(WARN, "get ts sync error", K(ret));
+  const transaction::MonotonicTs stc = transaction::MonotonicTs::current_time();
+  transaction::MonotonicTs unused_ts(0);
+  while (OB_FAIL(OB_TS_MGR.get_gts(tenant_id_, stc, NULL, gts_cache, unused_ts))) {
+    usleep(100);
   }
   TRANS_LOG(INFO, "my get gts", K(ret));
   return ret;

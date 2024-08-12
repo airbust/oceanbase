@@ -35,10 +35,20 @@ int ObXaStartExecutor::execute(ObExecContext &ctx, ObXaStartStmt &stmt)
   UNUSED(ctx);
   UNUSED(stmt);
   // 暂时禁掉mysql模式下的xa调用
+  static int64_t total_cnt = 0;
+  static const int64_t STATISTICS_INTERVAL_US = 10000000;
   std::time_t c = std::time(nullptr);
   while (std::difftime(time(nullptr), c) < 30) {
-    MTL(ObTransService*)->get_gts();
+    if (OB_SUCC(MTL(ObTransService*)->get_gts())) {
+      ATOMIC_INC(&total_cnt);
+    }
+    if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
+      TRANS_LOG(INFO, "send gts rpc request statistics", K(total_cnt),
+          "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
+      ATOMIC_STORE(&total_cnt, 0);
+    }
   }
+  TRANS_LOG(INFO, "send gts rpc request statistics end");
   return ret;
 }
 
