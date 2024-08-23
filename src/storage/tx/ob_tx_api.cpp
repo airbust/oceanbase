@@ -810,7 +810,7 @@ int ObTransService::get_gts()
   const transaction::MonotonicTs stc = transaction::MonotonicTs::current_time();
   transaction::MonotonicTs unused_ts(0);
   while (OB_FAIL(OB_TS_MGR.get_gts(tenant_id_, stc, NULL, gts_cache, unused_ts))) {
-    usleep(50);
+    usleep(100);
   }
   TRANS_LOG(INFO, "my get gts", K(ret));
   return ret;
