@@ -287,10 +287,12 @@ int ObGtsSource::get_gts(const MonotonicTs stc,
     } else {
       // If not in local, refresh gts
       if (need_send_rpc) {
-        if (OB_SUCCESS != (tmp_ret = query_gts_(leader))) {
-          TRANS_LOG(WARN, "query gts fail", K(tmp_ret), K(leader));
+          if (MonotonicTs::current_time().mts_ - gts_local_cache_.get_latest_srr().mts_ > 100) {
+            if (OB_SUCCESS != (tmp_ret = query_gts_(leader))) {
+              TRANS_LOG(WARN, "query gts fail", K(tmp_ret), K(leader));
+            }
+          }
         }
-      }
       TRANS_LOG(DEBUG, "after query gts", KR(tmp_ret), K(leader), K(need_send_rpc));
     }
     // If ret is not OB_SUCCESS, it means that an asynchronous task needs to be added to wait for the subsequent gts value
@@ -535,9 +537,11 @@ int ObGtsSource::wait_gts_elapse(const int64_t ts)
         }
       } else {
         // If the leader is not in local, gts needs to be refreshed
-        if (OB_SUCCESS != (tmp_ret = query_gts_(leader))) {
-          TRANS_LOG(WARN, "refresh gts failed", K(tmp_ret));
-        }
+          if (MonotonicTs::current_time().mts_ - gts_local_cache_.get_latest_srr().mts_ > 100) {
+            if (OB_SUCCESS != (tmp_ret = query_gts_(leader))) {
+              TRANS_LOG(WARN, "refresh gts failed", K(tmp_ret));
+            }
+          }
       }
     }
   }
@@ -639,7 +643,9 @@ int ObGtsSource::refresh_gts_(const bool need_refresh)
     }
     need_refresh_gts_location = true;
   } else {
-    ret = query_gts_(leader);
+      if (MonotonicTs::current_time().mts_ - gts_local_cache_.get_latest_srr().mts_ > 100) {
+        ret = query_gts_(leader);
+      }
   }
   if (need_refresh_gts_location) {
     (void)refresh_gts_location_();
