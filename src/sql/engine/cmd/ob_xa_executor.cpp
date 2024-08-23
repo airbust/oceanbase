@@ -36,16 +36,22 @@ int ObXaStartExecutor::execute(ObExecContext &ctx, ObXaStartStmt &stmt)
   UNUSED(stmt);
   // 暂时禁掉mysql模式下的xa调用
   static int64_t total_cnt = 0;
+  static int64_t total_rt = 0;
   static const int64_t STATISTICS_INTERVAL_US = 10000000;
   std::time_t c = std::time(nullptr);
   while (std::difftime(time(nullptr), c) < 30) {
+    const MonotonicTs start = MonotonicTs::current_time();
     if (OB_SUCC(MTL(ObTransService*)->get_gts())) {
+      const MonotonicTs end = MonotonicTs::current_time();
       ATOMIC_INC(&total_cnt);
+      (void)ATOMIC_FAA(&total_rt, end.mts_ - start.mts_);
     }
     if (REACH_TIME_INTERVAL(STATISTICS_INTERVAL_US)) {
       TRANS_LOG(INFO, "send gts rpc request statistics", K(total_cnt),
+          "avg_rt", (double)total_rt / (double)(total_cnt + 1),
           "avg_cnt", (double)total_cnt / (double)(STATISTICS_INTERVAL_US / 1000000));
       ATOMIC_STORE(&total_cnt, 0);
+      ATOMIC_STORE(&total_rt, 0);
     }
   }
   TRANS_LOG(INFO, "send gts rpc request statistics end");
